@@ -69,7 +69,9 @@ uv pip install -r requirements.txt
 
 ## ZED SDK and PyZED setup
 
-The ZED Python API is **not included in this repository**.
+The PyZED wheel is not included in this repository.
+
+Install the ZED SDK first, then download the PyZED wheel that matches your Python version, system architecture, and installed ZED SDK version.
 
 The correct PyZED wheel depends on:
 
@@ -85,83 +87,10 @@ Official ZED SDK installation documentation:
 
 https://www.stereolabs.com/docs/development/zed-sdk/linux
 
-Official PyZED installation documentation:
+Official PyZED installation documentation. Follow the exact steps given in the documentation:
 
 https://www.stereolabs.com/docs/development/api-languages/python
 
-### Check your system
-
-Check the Linux architecture:
-
-```bash
-uname -m
-```
-
-For a standard x86-64 workstation, this should normally return:
-
-```text
-x86_64
-```
-
-Check the Python version:
-
-```bash
-python --version
-```
-
-This project expects:
-
-```text
-Python 3.12.x
-```
-
-Check whether the ZED SDK is installed:
-
-```bash
-ls /usr/local/zed
-```
-
-You can also check the installed ZED SDK version with:
-
-```bash
-cat /usr/local/zed/settings/Version
-```
-
-If that file is unavailable on your SDK version, inspect the SDK installation directory instead.
-
-### Install the matching PyZED wheel
-
-StereoLabs includes a helper script with the ZED SDK that automatically detects the platform, Python version, CUDA setup, and SDK version and downloads the corresponding PyZED package. :chatgpt-content-reference{index="1"}
-
-With the robot virtual environment activated:
-
-```bash
-source .venv/bin/activate
-cd /usr/local/zed
-python3 get_python_api.py
-```
-
-The script downloads the appropriate wheel for the current system.
-
-For example, a Python 3.12 x86-64 system may produce a wheel with a name similar to:
-
-```text
-pyzed-5.4-cp312-cp312-linux_x86_64.whl
-```
-
-If you only want to download the wheel and install it manually into the project environment, install it with:
-
-```bash
-uv pip install /path/to/pyzed-*.whl
-```
-
-Verify the installation:
-
-```bash
-python -c "import pyzed.sl as sl; print('PyZED import successful')"
-```
-
-The ZED SDK itself must still be installed on the machine; the Python wheel alone is not sufficient. :chatgpt-content-reference{index="2"}
 
 ---
 
