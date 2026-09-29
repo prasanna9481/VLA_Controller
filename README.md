@@ -121,11 +121,11 @@ From the repository root:
 ```bash
 mkdir model_server
 git clone https://github.com/allenai/molmoact2.git
-cd model_server/official_molmoact2
+cd model_server/molmoact2
 uv sync
 ```
 
-### Optional: download MolmoAct2-DROID beforehand
+### Download MolmoAct2-DROID beforehand
 
 ```bash
 export HF_HUB_ENABLE_HF_TRANSFER=1
@@ -135,13 +135,7 @@ uv run hf download allenai/MolmoAct2-DROID
 The checkpoint is approximately 22 GB.
 
 Hugging Face authentication may be required depending on the model access settings.
-
-If the model cache should live on another disk, set `HF_HOME` before downloading or starting the server:
-
-```bash
-export HF_HOME=/path/to/model/cache
-```
-
+Follow the official repositpory of molmoact2 instruction for fine details.
 ---
 
 # Running the system
@@ -158,7 +152,7 @@ The normal workflow uses two terminals.
 From the repository root:
 
 ```bash
-cd model_server/official_molmoact2
+cd model_server/molmoact2
 ```
 
 Start the model server:
@@ -188,12 +182,6 @@ For a model server running on another machine:
 
 ```bash
 curl http://<server-ip>:8000/act
-```
-
-Example:
-
-```bash
-curl http://192.168.1.20:8000/act
 ```
 
 ---
@@ -240,14 +228,6 @@ cd robot
 The controller prints the current run information before policy execution begins.
 
 Review the output and robot workspace before continuing.
-
-The controller waits for confirmation before beginning execution.
-
-Stop the controller with:
-
-```text
-Ctrl+C
-```
 
 During shutdown, the controller requests a smooth robot stop, closes the camera and gripper connections, releases video writers, and joins the Franka control process.
 
