@@ -24,6 +24,7 @@ dist/
 /robot/experiments/
 /debug_model_images/
 /cameras/frame.png
+/cameras/*whl
 /zed_frame.png
 *.mp4
 
