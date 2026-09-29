@@ -1,0 +1,40 @@
+experiment:
+  name: baseline
+  root_dir: experiments
+
+task:
+  instruction: "pick up the blue cube and place it on the green plate"
+
+franka:
+  robot_ip: "192.168.103.1"
+
+  # Official FR3 joint position limits [rad]
+  joint_lower_limit:
+    [-2.9007, -1.8361, -2.9007, -3.0770, -2.8763, 0.4398, -3.0508]
+
+  joint_upper_limit:
+    [2.9007, 1.8361, 2.9007, -0.1169, 2.8763, 4.6216, 3.0508]
+
+  # User-selected conservative motion limits.
+  # These are intentionally much lower than the FR3 hardware limits.
+  max_joint_velocity: 0.40
+  max_joint_acceleration: 0.50
+  max_joint_jerk: 1.00
+
+molmo:
+  server_url: "http://127.0.0.1:8000/act"
+  max_vla_steps: 20
+  actions_per_chunk: 15
+  action_rate_hz: 15.0
+
+  max_model_waypoint_delta: 0.35
+  max_initial_target_offset: 0.35
+
+gripper:
+  close_threshold: 0.5
+  enabled: true
+  speed: 50
+  force: 20
+
+runtime:
+  dry_run: false
