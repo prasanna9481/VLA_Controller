@@ -1,63 +1,7 @@
 # MolmoAct2 Franka Controller
 
-This repository connects the **MolmoAct2-DROID** vision-language-action model to a Franka robot equipped with a Robotiq 2F-85 gripper and two ZED cameras. The model runs behind an HTTP inference server; the robot controller captures observations, requests an action trajectory, validates it, and executes a configurable part of the trajectory in a closed loop.
-
-> [!WARNING]
-> This project controls physical robot hardware. Keep the Franka user-stop within reach, clear the workspace, verify the configured joint limits and speeds, and test carefully before enabling motion. MolmoAct2 output is nondeterministic and can be unsafe.
-
-## System overview
-
-The controller sends the following observation to `POST /act`:
-
-- external/side camera image: RGB `uint8`
-- wrist camera image: RGB `uint8`
-- natural-language task instruction
-- robot state: eight `float32` values (`q1..q7` plus gripper position)
-
-The server returns an `N x 8` action array containing seven absolute Franka joint targets and one normalized gripper command. Before execution, the controller rejects non-finite actions, joint-limit violations, large initial offsets, and large waypoint jumps.
-
-During a run, the Franka control loop runs in a separate process. The main process repeatedly captures observations, performs MolmoAct2 inference, and executes up to `actions_per_chunk` actions at `action_rate_hz`.
-
-## Repository layout
-
-```text
-.
-├── cameras/                         # Dual ZED camera capture and tests
-├── gripper/                         # Robotiq Modbus RTU driver and status tools
-├── inference/                       # MolmoAct2 HTTP client and test client
-├── robot/
-│   ├── main_controller.py           # Main closed-loop controller
-│   ├── config.yaml                  # Task, robot, policy, and safety settings
-│   ├── robot_init.py                # Unlock Franka joints and activate FCI
-│   ├── home_robot.py                # Move to the configured home pose
-│   ├── read_jointpose.py            # Print current Franka joint positions
-│   └── experiments/                 # Images, videos, configs, and run logs
-└── model_server/official_molmoact2/ # Bundled upstream model/server project
-```
-
-## Hardware and software requirements
-
-- Linux workstation connected to a Franka robot
-- Franka Control Interface (FCI) and a compatible `pylibfranka` installation
-- Robotiq 2F-85 available as `/dev/ttyUSB0` at 115200 baud
-- two ZED cameras with the serial numbers configured in `cameras/zed_camera.py`
-- ZED SDK and its matching Python wheel
-- NVIDIA GPU suitable for MolmoAct2-DROID inference
-- recent NVIDIA driver compatible with the CUDA 12.8 PyTorch build used by the model server
-- Python 3.12 for the robot-side environment
-- [`uv`](https://docs.astral.sh/uv/)
-
-The current hardware defaults are:
-
-| Device | Default |
-| --- | --- |
-| Franka | `192.168.103.1` |
-| Robotiq | `/dev/ttyUSB0`, slave ID `0x09` |
-| Side ZED | serial `39337350` |
-| Wrist ZED | serial `19928076` |
-| Molmo endpoint | `http://127.0.0.1:8000/act` |
-
-Change these values for your installation before running the controller.
+This repository requests the **MolmoAct2-DROID** vision-language-action model to run the Franka robot equipped with a Robotiq 2F-85 gripper and two ZED cameras. 
+The model runs behind an HTTP inference server; the robot controller captures observations, requests an action trajectory, and executes the trajectory in a closed loop.
 
 ## Installation
 
@@ -203,6 +147,27 @@ uv run python robot/read_jointpose.py
 ```
 
 `inference/test_model_client.py` is a standalone protocol test, but it expects `external.jpg` and `wrist.jpg` in the current directory. Update its `SERVER_URL` when testing a remote server.
+## Hardware and software requirements
+
+- Linux workstation connected to a Franka robot
+- Franka Control Interface (FCI) and a compatible `pylibfranka` installation
+- Robotiq 2F-85 available as `/dev/ttyUSB0` at 115200 baud
+- two ZED cameras with the serial numbers configured in `cameras/zed_camera.py`
+- ZED SDK and its matching Python wheel
+- NVIDIA GPU suitable for MolmoAct2-DROID inference
+- recent NVIDIA driver compatible with the CUDA 12.8 PyTorch build used by the model server
+- Python 3.12 for the robot-side environment
+- [`uv`](https://docs.astral.sh/uv/)
+
+The current hardware defaults are:
+
+| Device | Default |
+| --- | --- |
+| Franka | `192.168.103.1` |
+| Robotiq | `/dev/ttyUSB0`, slave ID `0x09` |
+| Side ZED | serial `39337350` |
+| Wrist ZED | serial `19928076` |
+| Molmo endpoint | `http://127.0.0.1:8000/act` |
 
 ## Troubleshooting
 
