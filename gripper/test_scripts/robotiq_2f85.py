@@ -1,3 +1,25 @@
+"""
+Purpose:
+Tests direct communication and basic motion control of the Robotiq 2F-85
+gripper over an RS-485/serial Modbus interface.
+
+Workflow:
+1. Open the serial connection to the gripper.
+2. Read and print the current gripper status.
+3. Reset and activate the gripper.
+4. Prompt the user to open and close the gripper, then send the appropriate commands.
+
+Technical details:
+- Communication uses Modbus RTU over `/dev/ttyUSB0` at 115200 baud.
+- The gripper slave ID is `0x09`.
+- CRC16 is calculated and appended to every Modbus request.
+- Status is read from input registers starting at `0x07D0`.
+- Commands are written to holding registers starting at `0x03E8`.
+- Position uses the Robotiq raw convention:
+  `0 = fully open`, `255 = fully closed`.
+- Speed and force are also sent as raw Robotiq command values.
+"""
+
 import serial
 import time
 

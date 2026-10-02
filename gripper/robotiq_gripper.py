@@ -1,4 +1,29 @@
 #!/usr/bin/env python3
+"""
+Purpose:
+Provides a reusable Python interface for communicating with and controlling
+the Robotiq 2F-85 gripper over Modbus RTU through a serial RS-485 connection.
+
+Workflow:
+1. Open the serial connection to the gripper.
+2. Build and transmit Modbus RTU requests with CRC16 validation.
+3. Read and decode the gripper status registers.
+4. Expose activation, motion, object-detection, fault, position, and current state.
+5. Send activation and position commands to the gripper.
+6. Provide high-level open, close, raw-position, normalized-position,
+   and full-state helper functions.
+
+Technical details:
+- Default connection: `/dev/ttyUSB0`, 115200 baud, slave ID `0x09`.
+- Status is read from input registers starting at `0x07D0`.
+- Commands are written to registers starting at `0x03E8`.
+- Raw gripper position uses the Robotiq convention:
+  `0 = fully open`, `255 = fully closed`.
+- get_position_normalized() maps the raw position to `[0.0, 1.0]`,
+  where `0.0 = open` and `1.0 = closed`.
+- read_status() decodes the Robotiq gACT, gGTO, gSTA, and gOBJ status fields.
+- The class is intended to be imported by the main MolmoAct2 Franka controller.
+"""
 
 import serial
 import time

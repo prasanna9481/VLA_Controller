@@ -1,5 +1,31 @@
 #!/usr/bin/env python3
 
+
+"""
+Dual ZED Camera Interface
+
+Purpose:
+Provides a reusable interface for the side and wrist ZED cameras used by
+the MolmoAct2 Franka controller.
+
+Workflow:
+1. Select each physical ZED camera using its serial number.
+2. Open both cameras at HD720 resolution and 30 FPS.
+3. Grab frames from the LEFT view of each camera.
+4. Convert ZED BGRA frames to BGR or RGB NumPy arrays.
+5. Expose RGB frames through DualZEDCameras.get_frames_rgb() for MolmoAct2.
+6. Close both camera connections cleanly when finished.
+
+Technical details:
+- Camera serial numbers are stored in the CAMERAS dictionary.
+- ZEDCamera handles one physical camera.
+- DualZEDCameras manages the side and wrist cameras together.
+- get_frame_bgr() returns OpenCV-compatible BGR images.
+- get_frame_rgb() returns RGB uint8 images suitable for model input.
+- The standalone main() function can be used to test both live camera feeds.
+"""
+
+
 import cv2
 import numpy as np
 import pyzed.sl as sl

@@ -1,5 +1,31 @@
 #!/usr/bin/env python3
 
+"""
+Purpose:
+Continuously reads and decodes the Robotiq 2F-85 gripper status over
+Modbus RTU so the current activation, motion, object-detection, and
+position state can be inspected.
+
+Workflow:
+1. Open the serial connection to the Robotiq gripper.
+2. Send a Modbus RTU request for the gripper status registers.
+3. Read the 11-byte response from the gripper.
+4. Parse the returned status, fault, requested position, actual position,
+   and motor-current fields.
+5. Decode the Robotiq status bits:
+   gACT, gGTO, gSTA, and gOBJ.
+
+Technical details:
+- Communication uses Modbus RTU over `/dev/ttyUSB0` at 115200 baud.
+- The gripper slave ID is `0x09`.
+- Status registers are read starting at address `0x07D0`.
+- CRC16 is calculated and appended to every Modbus request.
+- The actual gripper position is reported in the Robotiq raw range:
+  approximately `0 = fully open` and `255 = fully closed`.
+- The script is read-only and does not send motion commands to the gripper.
+"""
+
+
 import serial
 import time
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-
- #this script will explicitely read the joint positions of the robot and print them to the console. 
+"""
+ this script will explicitely read the joint positions of the robot and print them to the console. 
  # It is useful for debugging and verifying the robot's state.
+ """
 import numpy as np
 from pylibfranka import Robot, RealtimeConfig
 

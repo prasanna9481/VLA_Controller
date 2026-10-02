@@ -169,12 +169,10 @@ curl http://<server-ip>:8000/act
 
 ## Terminal 2: initialize the robot
 
-Return to the repository root.
-
-Activate the robot-side environment:
+Return to the repository root:
 
 ```bash
-source .venv/bin/activate
+cd ~/molmoact2
 ```
 
 Initialize the Franka:

@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+#!/usr/bin/env python3
+"""
+Franka Home Pose Utility
+
+Moves the Franka smoothly from its current joint configuration to the
+predefined HOME_Q pose using a quintic trajectory, then opens the Robotiq gripper.
+
+Technical details:
+- Franka joint-position control runs with JointImpedance.
+- RealtimeConfig.kIgnore is used to avoid enforcing realtime scheduling.
+- Motion duration is controlled by MOVE_TIME.
+- The quintic interpolation provides smooth start/end velocity and acceleration.
+"""
 
 import time
 import numpy as np

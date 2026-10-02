@@ -1,4 +1,43 @@
 #!/usr/bin/env python3
+"""
+Purpose:
+Runs the complete MolmoAct2-DROID control pipeline for a Franka robot with
+dual ZED cameras and a Robotiq gripper.(main controller runnable code)
+
+Technical flow:
+1. Load experiment, robot, model, safety, and runtime parameters from config.yaml.
+2. Run Franka joint control in a separate multiprocessing process so the
+   high-frequency robot control loop is isolated from camera capture and VLA inference.
+3. Exchange Franka joint targets and measured joint states through shared memory.
+4. Use Ruckig inside the Franka process to convert incoming model waypoints into
+   smooth joint trajectories while respecting configured velocity, acceleration,
+   jerk, and joint-position limits.
+5. In the main process, capture side and wrist ZED RGB observations, read the
+   current Franka and Robotiq state, and send them with the language instruction
+   to the MolmoAct2-DROID HTTP inference server.
+6. Validate each returned (N, 8) action trajectory before execution, then stream
+   the selected joint and gripper actions at the configured policy rate.
+7. Repeat observation -> inference -> execution in closed loop for the configured
+   number of VLA steps.
+8. Record experiment configuration, robot/action logs, and side/wrist videos in
+   a separate iteration directory for each run.
+
+Important libraries:
+- pylibfranka: Franka state access and joint-position control.
+- ruckig: online trajectory generation and motion smoothing.
+- multiprocessing: isolates Franka control from VLA inference and camera workloads.
+- pyzed/OpenCV: dual-camera acquisition and experiment video recording.
+- NumPy: robot state and trajectory representation.
+- PyYAML: experiment and controller configuration.
+- MolmoActClient: HTTP communication with the MolmoAct2-DROID inference server.
+- RobotiqGripper: Modbus-based gripper state and command interface.
+
+Safety:
+Model trajectories are checked for valid shape, finite values, Franka joint limits,
+initial target offset, and inter-waypoint discontinuities before being published
+to the robot control process. Ruckig additionally enforces configured joint
+velocity, acceleration, and jerk limits during execution.
+"""
 
 import ctypes
 import multiprocessing as mp

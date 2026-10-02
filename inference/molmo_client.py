@@ -1,4 +1,31 @@
 #!/usr/bin/env python3
+"""
+Purpose:
+Provides a lightweight client interface for sending robot observations to the
+local MolmoAct2-DROID inference server and receiving predicted action chunks.
+
+Workflow:
+1. Receive the external RGB image, wrist RGB image, language instruction,
+   and current robot state.
+2. Convert images to uint8 and robot state to float32 NumPy arrays.
+3. Build the MolmoAct2 observation payload.
+4. Serialize NumPy data using `json_numpy`.
+5. Send the observation to the `/act` HTTP endpoint.
+6. Decode the server response and return the predicted action trajectory
+   together with the reported inference time.
+
+Technical details:
+- Default server endpoint: `http://127.0.0.1:8000/act`.
+- Camera inputs must be RGB uint8 arrays with shape `(H, W, 3)`.
+- Robot state must contain 8 float32 values:
+  `[q1, q2, q3, q4, q5, q6, q7, gripper_state]`.
+- NumPy arrays are serialized using `json_numpy` because the MolmoAct2
+  server expects this request format.
+- The returned `actions` array contains the continuous robot action chunk
+  produced by MolmoAct2-DROID.
+- This class performs inference communication only; it does not control
+  the Franka robot or Robotiq gripper directly.
+"""
 
 import numpy as np
 import requests

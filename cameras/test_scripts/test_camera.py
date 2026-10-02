@@ -1,3 +1,26 @@
+"""
+Purpose:
+Tests a specific ZED camera by opening it with its serial number,
+displaying a live stream, and saving one captured frame.
+
+Workflow:
+1. Create and configure the ZED camera for HD720 at 30 FPS.
+2. Select the physical camera using its serial number.
+3. Continuously grab frames from the LEFT camera view.
+4. Convert the ZED BGRA image into a BGR NumPy array for OpenCV.
+5. Display the live stream in an OpenCV window.
+6. Save the first successfully captured frame as `zed_frame.png`.
+7. Stop when `q` is pressed and close the camera cleanly.
+
+Technical details:
+- Camera selection is done with `set_from_serial_number()`.
+- Frames are retrieved using `sl.VIEW.LEFT`.
+- ZED returns BGRA image data; the alpha channel is removed for OpenCV.
+- OpenCV uses BGR color ordering for display and image saving.
+"""
+
+
+
 import cv2
 import pyzed.sl as sl
 
