@@ -35,7 +35,7 @@ uv --version
 
 ---
 
-### Install ZED SDK and PyZED
+### 3. Install ZED SDK and PyZED
 
 The PyZED wheel is not included in this repository.
 
