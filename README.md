@@ -62,34 +62,14 @@ https://www.stereolabs.com/docs/development/api-languages/python
 ---
 ## Setup
 
-### 1. Create the robot-side environment
+### 1. Create and synchronize the robot-side environment
 
-The robot-side environment uses Python 3.12.
+The robot-side environment uses Python 3.12 and is managed with `uv`.
 
 From the repository root:
 
 ```bash
-uv venv --python 3.12
-```
-
-Activate it:
-
-```bash
-source .venv/bin/activate
-```
-
-Verify the Python version:
-
-```bash
-python --version
-```
-
-It should report Python 3.12.
-
-Install the robot-side dependencies:
-
-```bash
-uv pip install -r requirements.txt
+uv sync
 ```
 
 
@@ -136,6 +116,7 @@ The checkpoint is approximately 22 GB.
 
 Hugging Face authentication may be required depending on the model access settings.
 Follow the official repositpory of molmoact2 instruction for fine details.
+
 ---
 
 # Running the system
@@ -222,12 +203,12 @@ Currently, `main_controller.py` should be started from inside the `robot/` direc
 
 ```bash
 cd robot
-../.venv/bin/python main_controller.py
+python main_controller.py
 ```
 
 The controller prints the current run information before policy execution begins.
 
 Review the output and robot workspace before continuing.
 
-During shutdown, the controller requests a smooth robot stop, closes the camera and gripper connections, releases video writers, and joins the Franka control process.
+During shutdown, the controller requests a smooth robot stop, closes the camera and gripper connections, releases video writers, and ends the Franka control process.
 

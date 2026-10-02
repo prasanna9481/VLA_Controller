@@ -60,7 +60,7 @@ def create_experiment_dir():
         iteration += 1
 
     experiment_dir = os.path.join(EXPERIMENT_ROOT, f"iteration_{iteration}")
-    os.makedirs(os.path.join(experiment_dir, "images"))
+    # os.makedirs(os.path.join(experiment_dir, "images"))
     os.makedirs(os.path.join(experiment_dir, "videos"))
     shutil.copy2(CONFIG_PATH, os.path.join(experiment_dir, "config.yaml"))
     return experiment_dir
@@ -270,7 +270,7 @@ class VLAController:
         self.error_queue = error_queue
 
         self.experiment_dir = experiment_dir
-        self.image_dir = os.path.join(experiment_dir, "images")
+        # self.image_dir = os.path.join(experiment_dir, "images")
         self.video_dir = os.path.join(experiment_dir, "videos")
         self.log_path = os.path.join(experiment_dir, "robot_run.txt")
 
@@ -426,12 +426,12 @@ class VLAController:
         side_rgb, wrist_rgb, robot_state = self.get_observation()
         self.current_vla_state = robot_state.copy()
 
-        Image.fromarray(side_rgb.astype(np.uint8)).save(
-            os.path.join(self.image_dir, f"step_{vla_step:03d}_side.png")
-        )
-        Image.fromarray(wrist_rgb.astype(np.uint8)).save(
-            os.path.join(self.image_dir, f"step_{vla_step:03d}_wrist.png")
-        )
+        # Image.fromarray(side_rgb.astype(np.uint8)).save(
+        #     os.path.join(self.image_dir, f"step_{vla_step:03d}_side.png")
+        # )
+        # Image.fromarray(wrist_rgb.astype(np.uint8)).save(
+        #     os.path.join(self.image_dir, f"step_{vla_step:03d}_wrist.png")
+        # )
 
         predicted_actions, _ = self.molmo.predict(
             external_image=side_rgb,

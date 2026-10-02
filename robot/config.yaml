@@ -17,9 +17,9 @@ franka:
 
   # User-selected conservative motion limits.
   # These are intentionally much lower than the FR3 hardware limits.
-  max_joint_velocity: 0.40
-  max_joint_acceleration: 0.50
-  max_joint_jerk: 1.00
+  max_joint_velocity: 0.50
+  max_joint_acceleration: 0.60
+  max_joint_jerk: 2.00
 
 molmo:
   server_url: "http://127.0.0.1:8000/act"
