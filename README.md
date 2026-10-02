@@ -198,6 +198,7 @@ uv run python robot/home_robot.py
 ## Start the controller
 
 Currently, `main_controller.py` should be started from inside the `robot/` directory because it loads local runtime files relative to the current working directory.
+To run an episode for a specific task, define the task instruction in `robot/config.yaml`
 
 ```bash
 cd robot
