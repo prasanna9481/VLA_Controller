@@ -35,7 +35,34 @@ uv --version
 
 ---
 
-### 3. Create the robot-side environment
+### Install ZED SDK and PyZED
+
+The PyZED wheel is not included in this repository.
+
+Install the ZED SDK first, then download the PyZED wheel that matches your Python version, system architecture, and installed ZED SDK version.
+
+The correct PyZED wheel depends on:
+
+- operating system
+- CPU architecture
+- Python version
+- ZED SDK version
+- CUDA compatibility
+
+The ZED SDK must be installed before installing PyZED.
+
+Official ZED SDK installation documentation:
+
+https://www.stereolabs.com/docs/development/zed-sdk/linux
+
+Official PyZED installation documentation. Follow the exact steps given in the documentation:
+
+https://www.stereolabs.com/docs/development/api-languages/python
+
+---
+## Setup
+
+### 1. Create the robot-side environment
 
 The robot-side environment uses Python 3.12.
 
@@ -65,35 +92,8 @@ Install the robot-side dependencies:
 uv pip install -r requirements.txt
 ```
 
----
 
-## ZED SDK and PyZED setup
-
-The PyZED wheel is not included in this repository.
-
-Install the ZED SDK first, then download the PyZED wheel that matches your Python version, system architecture, and installed ZED SDK version.
-
-The correct PyZED wheel depends on:
-
-- operating system
-- CPU architecture
-- Python version
-- ZED SDK version
-- CUDA compatibility
-
-The ZED SDK must be installed before installing PyZED.
-
-Official ZED SDK installation documentation:
-
-https://www.stereolabs.com/docs/development/zed-sdk/linux
-
-Official PyZED installation documentation. Follow the exact steps given in the documentation:
-
-https://www.stereolabs.com/docs/development/api-languages/python
-
----
-
-## Franka Desk credentials
+### 2. Franka Desk credentials
 
 Create in the exact path:
 
@@ -112,7 +112,7 @@ The `.env` file is ignored by Git and should not be committed.
 
 ---
 
-## Model server setup
+### 3. Model server setup
 
 The MolmoAct2 model server has its own environment and dependency lockfile.
 
