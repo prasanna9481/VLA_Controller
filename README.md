@@ -12,7 +12,7 @@ The MolmoAct2 model runs behind an HTTP inference server. The robot controller c
 
 ```bash
 git clone <repository-url>
-cd molmoact2
+cd VLA_Controller
 ```
 
 ---
@@ -172,7 +172,7 @@ curl http://<server-ip>:8000/act
 Return to the repository root:
 
 ```bash
-cd ~/molmoact2
+cd ~/VLA_Controller
 ```
 
 Initialize the Franka:
