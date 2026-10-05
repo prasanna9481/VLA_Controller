@@ -100,8 +100,9 @@ From the repository root:
 
 ```bash
 mkdir model_server
+cd model_server
 git clone https://github.com/allenai/molmoact2.git
-cd model_server/molmoact2
+cd molmoact2
 uv sync
 ```
 
