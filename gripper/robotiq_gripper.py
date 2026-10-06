@@ -35,7 +35,7 @@ class RobotiqGripper:
         port="/dev/ttyUSB0",
         baud=115200,
         slave_id=0x09,
-        timeout=1.0,
+        timeout=0.5,
     ):
         self.port = port
         self.baud = baud
@@ -96,7 +96,7 @@ class RobotiqGripper:
         self.ser.write(frame)
         self.ser.flush()
 
-        time.sleep(0.1)
+        time.sleep(0.05)
 
         return self.ser.read(read_len)
 
@@ -265,7 +265,7 @@ class RobotiqGripper:
             force=0,
         )
 
-        time.sleep(0.5)
+        time.sleep(0.05)
 
         self.write_command(
             action=0x01,
@@ -274,7 +274,7 @@ class RobotiqGripper:
             force=0,
         )
 
-        time.sleep(3)
+        time.sleep(0.05)
 
         print("Robotiq activation complete.")
 

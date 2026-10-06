@@ -46,7 +46,6 @@ import shutil
 import time
 import traceback
 from queue import Empty
-
 import cv2
 import numpy as np
 import yaml
@@ -307,6 +306,8 @@ class VLAController:
         self.state_version = state_version
         self.stop_event = stop_event
         self.error_queue = error_queue
+        self.gripper = RobotiqGripper()
+        self.gripper.activate()
 
         self.experiment_dir = experiment_dir
         # self.image_dir = os.path.join(experiment_dir, "images")
@@ -455,8 +456,22 @@ class VLAController:
 
         normalized_value = float(np.clip(gripper_value, 0.0, 1.0))
         robotiq_position = int(round(normalized_value * 255.0))
+
+        gripper_start = time.perf_counter()
+
         self.gripper.set_position(
-            robotiq_position, speed=GRIPPER_SPEED, force=GRIPPER_FORCE
+            robotiq_position,
+            speed=GRIPPER_SPEED,
+            force=GRIPPER_FORCE,
+        )
+
+        gripper_time = time.perf_counter() - gripper_start
+
+        print(
+            f"Gripper: model={gripper_value:.4f} "
+            f"-> Robotiq={robotiq_position} | "
+            f"execution={gripper_time:.4f} s "
+            f"({gripper_time * 1000:.1f} ms)"
         )
 
     def infer(self, vla_step):
@@ -489,6 +504,7 @@ class VLAController:
         and gripper command for each policy step are issued together.
         """
         action_count = min(ACTIONS_PER_CHUNK, len(predicted_actions))
+        print(f"Executing {action_count}/{len(predicted_actions)} Molmo actions...")
         executed_actions = []
         next_action_time = time.perf_counter()
 
@@ -500,6 +516,10 @@ class VLAController:
             gripper_value = float(action[7])
             full_action = np.concatenate(
                 [target_joints, np.array([gripper_value], dtype=np.float64)]
+            )
+            print(
+                f"Action {action_index + 1}/{action_count}: "
+                f"{np.array2string(full_action, precision=6)}"
             )
 
             if not DRY_RUN:
