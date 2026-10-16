@@ -3,7 +3,7 @@ experiment:
   root_dir: experiments
 
 task:
-  instruction: "pick up the RED cube and place it on the green plate"
+  instruction: "pick up the green cube and put it the green cup"
 
 franka:
   robot_ip: "192.168.103.1"
@@ -14,12 +14,9 @@ franka:
   joint_upper_limit:
     [2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973]
 
-  max_joint_velocity: 0.35
-  max_joint_acceleration: 0.35
-  max_joint_jerk: 2.00
-
-  position_time_constant: 0.35
-  velocity_time_constant: 0.30
+  max_joint_velocity: 2.175
+  max_joint_acceleration: 2.00
+  max_joint_jerk: 5.00
 
 molmo:
   server_url: "http://127.0.0.1:8000/act"
@@ -27,13 +24,12 @@ molmo:
   actions_per_chunk: 15
   action_rate_hz: 15.0
 
-  max_model_waypoint_delta: 0.45
-  max_initial_target_offset: 0.35
+  max_model_waypoint_delta: 1.00
+  max_initial_target_offset: 1.00
 
 gripper:
-  close_threshold: 0.5
-  enabled: TRUE
-  speed: 60
+  enabled: true
+  speed: 90
   force: 20
 
 runtime:

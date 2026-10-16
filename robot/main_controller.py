@@ -364,7 +364,15 @@ class VLAController:
 
     def get_model_state(self):
         joint_state = self.get_joint_state()
-        gripper_position = self.gripper.get_raw_position()
+        gripper_position = self.gripper.get_position_normalized()
+
+        # binary gripper state
+        if gripper_position <= 0.5:
+            gripper_position = 0.0
+        else:
+            gripper_position = 1.0
+        # print(f"Joint state: {joint_state}, Gripper position: {gripper_position}")
+        
         return np.concatenate(
             [joint_state, np.array([gripper_position], dtype=np.float32)]
         )
@@ -382,8 +390,8 @@ class VLAController:
 
     def get_observation(self):
         side_rgb, wrist_rgb = self.cameras.get_frames_rgb()
-        self._write_rgb_to_video("side", side_rgb)
-        self._write_rgb_to_video("wrist", wrist_rgb)
+        # self._write_rgb_to_video("side", side_rgb)
+        # self._write_rgb_to_video("wrist", wrist_rgb)
         return side_rgb, wrist_rgb, self.get_model_state()
 
     def set_joint_target(self, target_joints):
@@ -454,10 +462,9 @@ class VLAController:
         if not ENABLE_GRIPPER:
             return
 
-        normalized_value = float(np.clip(gripper_value, 0.0, 1.0))
-        robotiq_position = int(round(normalized_value * 255.0))
+        cliped_value = float(np.clip(gripper_value, 0.0, 1.0))
+        robotiq_position = int(round(cliped_value * 255.0))
 
-        gripper_start = time.perf_counter()
 
         self.gripper.set_position(
             robotiq_position,
@@ -465,14 +472,6 @@ class VLAController:
             force=GRIPPER_FORCE,
         )
 
-        gripper_time = time.perf_counter() - gripper_start
-
-        print(
-            f"Gripper: model={gripper_value:.4f} "
-            f"-> Robotiq={robotiq_position} | "
-            f"execution={gripper_time:.4f} s "
-            f"({gripper_time * 1000:.1f} ms)"
-        )
 
     def infer(self, vla_step):
         """Capture the latest observation and request one action chunk."""
@@ -504,7 +503,7 @@ class VLAController:
         and gripper command for each policy step are issued together.
         """
         action_count = min(ACTIONS_PER_CHUNK, len(predicted_actions))
-        print(f"Executing {action_count}/{len(predicted_actions)} Molmo actions...")
+        # print(f"Executing {action_count}/{len(predicted_actions)} Molmo actions...")
         executed_actions = []
         next_action_time = time.perf_counter()
 
@@ -517,10 +516,10 @@ class VLAController:
             full_action = np.concatenate(
                 [target_joints, np.array([gripper_value], dtype=np.float64)]
             )
-            print(
-                f"Action {action_index + 1}/{action_count}: "
-                f"{np.array2string(full_action, precision=6)}"
-            )
+            # print(
+            #     f"Action {action_index + 1}/{action_count}: "
+            #     f"{np.array2string(full_action, precision=6)}"
+            # )
 
             if not DRY_RUN:
                 self.set_joint_target(target_joints)

@@ -96,7 +96,7 @@ class RobotiqGripper:
         self.ser.write(frame)
         self.ser.flush()
 
-        time.sleep(0.05)
+        time.sleep(0.000005)
 
         return self.ser.read(read_len)
 
@@ -265,7 +265,7 @@ class RobotiqGripper:
             force=0,
         )
 
-        time.sleep(0.05)
+        time.sleep(0.000005)
 
         self.write_command(
             action=0x01,
@@ -274,7 +274,7 @@ class RobotiqGripper:
             force=0,
         )
 
-        time.sleep(0.05)
+        time.sleep(0.000005)
 
         print("Robotiq activation complete.")
 
