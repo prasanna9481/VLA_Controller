@@ -161,7 +161,7 @@ def franka_control_process(
     control = None
 
     try:
-        robot = Robot(ROBOT_IP, RealtimeConfig.kIgnore)
+        robot = Robot(ROBOT_IP)
 
         while not stop_event.is_set():
             try:
@@ -508,6 +508,8 @@ class VLAController:
         next_action_time = time.perf_counter()
 
         for action_index in range(action_count):
+            if (action_index) % 2 == 0:
+                continue  # Skip some actions to reduce execution time for testing.
             self.check_franka_error()
 
             action = predicted_actions[action_index]
@@ -528,8 +530,8 @@ class VLAController:
 
             next_action_time += ACTION_DT
             sleep_time = next_action_time - time.perf_counter()
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+            # if sleep_time > 0:
+            #     time.sleep(sleep_time)
 
         # Keep one compact record per VLA step for experiment analysis.
         self.write_log("=" * 80)
