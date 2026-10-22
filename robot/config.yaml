@@ -3,17 +3,12 @@ experiment:
   root_dir: experiments
 
 task:
-  instruction: "pick up the green cube and put it in the same couloured cup"
+  instruction: "pick up the green cube"
 
 franka:
   robot_ip: "192.168.103.1"
-
-  joint_lower_limit:
-    [-2.8473, -1.7128, -2.8473, -3.0218, -2.8473, 0.0325, -2.8473]
-
-  joint_upper_limit:
-    [2.8473, 1.7128, 2.8473, -0.1198, 2.8473, 3.7025, 2.8473]
-
+  joint_lower_limit: [-2.8473, -1.7128, -2.8473, -3.0218, -2.8473, 0.0325, -2.8473]
+  joint_upper_limit: [2.8473, 1.7128, 2.8473, -0.1198, 2.8473, 3.7025, 2.8473]
   max_joint_velocity: 0.50
   max_joint_acceleration: 0.70
   max_joint_jerk: 0.70
@@ -23,14 +18,21 @@ molmo:
   max_vla_steps: 100
   actions_per_chunk: 15
   action_rate_hz: 15.0
+  max_model_waypoint_delta: 0.60
+  max_initial_target_offset: 0.60
 
-  max_model_waypoint_delta: 0.50
-  max_initial_target_offset: 0.50
+pi05:
+  server_url: "ws://127.0.0.1:8000"
+  max_vla_steps: 100
+  actions_per_chunk: 15
+  action_rate_hz: 15.0
 
 gripper:
   enabled: true
   speed: 90
   force: 20
 
-runtime:
-  dry_run: false
+safety:
+  max_action_joint_displacement_rad: 1.0
+  max_tracking_error_rad: 2.0
+  max_feedback_age_s: 0.05
