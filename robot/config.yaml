@@ -27,6 +27,23 @@ pi05:
   actions_per_chunk: 15
   action_rate_hz: 15.0
 
+duet_dino:
+  host: 127.0.0.1
+  port: 8000
+  timeout_seconds: 120
+  instruction: goal
+  max_steps: 25
+  max_translation_per_action: 0.20
+  max_rotation_per_action_rad: 0.60
+  max_joint_target_delta_rad: 0.70
+  max_path_deviation_m: 0.05
+  max_path_rotation_deviation_rad: 0.095
+  max_trajectory_seconds: 20
+  joint_goal_tolerance_rad: 0.01
+  settle_time_seconds: 0.15
+  motion_timeout_seconds: 25
+  save_observations: true
+
 gripper:
   enabled: true
   speed: 90
