@@ -12,7 +12,8 @@ Technical flow:
 5. Request base-frame Cartesian translation and rotation-vector deltas from Duet-DINO.
 6. Check action bounds, convert the target pose to joints using FrankaIK,
    and validate the sampled Ruckig trajectory in Cartesian and joint space.
-7. Publish the joint target and gripper command without blocking on arm settling.
+7. Publish arm and gripper targets, wait for motion to settle, and compare the
+   measured pose with the absolute predicted target.
 8. Save the experiment configuration, action logs, images and optional videos.
 
 Important libraries:
@@ -36,6 +37,7 @@ import ctypes
 import json
 import multiprocessing as mp
 import shutil
+import time
 import traceback
 from pathlib import Path
 from queue import Empty
@@ -81,6 +83,7 @@ MAX_JOINT_ACCELERATION = [float(FRANKA_CONFIG["max_joint_acceleration"])] * 7
 MAX_JOINT_JERK = [float(FRANKA_CONFIG["max_joint_jerk"])] * 7
 
 MAX_VLA_STEPS = int(DUET_CONFIG["max_steps"])
+MAX_CONSECUTIVE_REJECTIONS = int(RUNTIME_CONFIG.get("max_consecutive_rejections", 3))
 MAX_TRANSLATION_PER_ACTION = float(DUET_CONFIG["max_translation_per_action"])
 MAX_ROTATION_PER_ACTION = float(DUET_CONFIG["max_rotation_per_action_rad"])
 MAX_JOINT_TARGET_DELTA = float(DUET_CONFIG["max_joint_target_delta_rad"])
@@ -92,7 +95,7 @@ GRIPPER_SPEED = int(GRIPPER_CONFIG["speed"])
 GRIPPER_FORCE = int(GRIPPER_CONFIG["force"])
 DRY_RUN = bool(RUNTIME_CONFIG.get("dry_run", False))
 SAVE_OBSERVATIONS = bool(DUET_CONFIG.get("save_observations", True))
-SAVE_VIDEOS = bool(DUET_CONFIG.get("save_videos", False))
+SAVE_VIDEOS = bool(DUET_CONFIG.get("save_videos", True))
 VIDEO_FPS = float(DUET_CONFIG.get("video_fps", 2.0))
 
 
@@ -151,7 +154,7 @@ def read_shared_vector_if_updated(shared_array, version_counter, previous_versio
 # Independent Franka process: deliberately no automatic error recovery.
 
 def franka_control_process(shared_target, target_version, shared_state, state_version,
-                           state_ready, stop_event, error_queue):
+                           completed_version, state_ready, stop_event, error_queue):
     robot = control = None
     try:
         robot = Robot(ROBOT_IP)
@@ -174,6 +177,7 @@ def franka_control_process(shared_target, target_version, shared_state, state_ve
 
         target_joints = measured_joints.copy()
         last_target_version = target_version.value
+        settled_cycles = 0
         control.writeOnce(JointPositions(measured_joints.tolist()))
         state_ready.set()
         print("Franka control ready.", flush=True)
@@ -187,6 +191,7 @@ def franka_control_process(shared_target, target_version, shared_state, state_ve
             )
             if new_version != last_target_version:
                 target_joints, last_target_version = new_target.copy(), new_version
+                settled_cycles = 0
                 if (not np.all(np.isfinite(target_joints)) or
                     np.any(target_joints < JOINT_LOWER_LIMIT) or
                     np.any(target_joints > JOINT_UPPER_LIMIT)):
@@ -205,6 +210,17 @@ def franka_control_process(shared_target, target_version, shared_state, state_ve
                 raise RuntimeError("Ruckig command violates Franka joint limits.")
             control.writeOnce(JointPositions(command_joints.tolist()))
             ruckig_output.pass_to_input(ruckig_input)
+
+            # Acknowledge only after Ruckig finishes AND measured joints settle.
+            # Requiring consecutive cycles avoids acknowledging transient proximity.
+            if (result == 1 and
+                np.max(np.abs(measured_joints - target_joints)) < 0.005 and
+                np.max(np.abs(np.asarray(robot_state.dq, dtype=np.float64))) < 0.02):
+                settled_cycles += 1
+                if settled_cycles >= 100:
+                    completed_version.value = last_target_version
+            else:
+                settled_cycles = 0
 
     except Exception:
         try:
@@ -237,9 +253,8 @@ def wrap_euler_angles(angles):
 
 def model_pose(transform, gripper_position):
     """Absolute base-frame EE pose (xyz, roll, pitch, yaw) and absolute grip [0, 1]."""
-    euler_angles = wrap_euler_angles(
-        Rotation.from_matrix(transform[:3, :3]).as_euler("xyz")
-    )
+    euler_angles = Rotation.from_matrix(transform[:3, :3]).as_euler("xyz")
+    
     return np.concatenate((transform[:3, 3], euler_angles,
                            [np.clip(gripper_position, 0.0, 1.0)])).astype(np.float32)
 
@@ -263,6 +278,17 @@ def target_from_action(current_pose, gripper_position, predicted_action):
         Rotation.from_rotvec(predicted_action[3:6]).as_matrix()
         @ current_pose[:3, :3]
     )
+    # Apply the predicted rotation-vector delta.
+    # target_rotation = (
+    #     Rotation.from_rotvec(predicted_action[3:6])
+    #     * Rotation.from_matrix(current_pose[:3, :3])
+    # )
+
+    # # Convert to Euler XYZ and wrap each angle to [-pi/2, pi/2).
+    # target_euler = target_rotation.as_euler("xyz")
+    # target_euler = (target_euler + np.pi / 2) % np.pi - np.pi / 2
+
+    # desired_pose[:3, :3] = Rotation.from_euler("xyz", target_euler).as_matrix()
 
     # Model's seventh action component is a relative normalized gripper delta.
     desired_gripper = float(np.clip(gripper_position + predicted_action[6], 0.0, 1.0))
@@ -344,9 +370,11 @@ class VLAController:
     """Coordinate goal images, Duet-DINO inference, Cartesian IK and Franka motion."""
 
     def __init__(self, shared_target, target_version, shared_state, state_version,
-                 stop_event, error_queue, experiment_dir, robot=None, franka_process=None):
+                 stop_event, error_queue, experiment_dir, robot=None, franka_process=None,
+                 completed_version=None):
         self.shared_target = shared_target
         self.target_version = target_version
+        self.completed_version = completed_version
         self.shared_state = shared_state
         self.state_version = state_version
         self.stop_event = stop_event
@@ -401,6 +429,9 @@ class VLAController:
         current_joints, current_pose = self.get_joint_state()
         gripper_position = float(np.clip(self.gripper.get_position_normalized(), 0.0, 1.0))
         external_rgb, wrist_rgb = self.cameras.get_frames_rgb()
+        #convert the images sendign to the model each time into the video writer
+        self._write_rgb_to_video("external", external_rgb)
+        self._write_rgb_to_video("wrist", wrist_rgb)
         return external_rgb, wrist_rgb, current_joints, current_pose, gripper_position
 
     def _write_rgb_to_video(self, camera_name, rgb_frame):
@@ -454,9 +485,13 @@ class VLAController:
         if position_error > 0.002 or rotation_error > np.deg2rad(2.0):
             raise ModelTrajectoryRejected("Franka/MuJoCo forward-kinematics mismatch.")
 
-        target_joints = np.asarray(self.ik.solve(
-            current_joints, desired_pose[:3, 3], desired_pose[:3, :3]
-        ), dtype=np.float64)
+        try:
+            target_joints = np.asarray(self.ik.solve(
+                current_joints, desired_pose[:3, 3], desired_pose[:3, :3]
+            ), dtype=np.float64)
+        except RuntimeError as error:
+            # IK feasibility failures are rejected predictions, not controller faults.
+            raise ModelTrajectoryRejected(f"IK rejected target: {error}") from error
         if target_joints.shape != (7,) or not np.all(np.isfinite(target_joints)):
             raise ModelTrajectoryRejected("IK returned an invalid joint target.")
         if np.any(target_joints < JOINT_LOWER_LIMIT) or np.any(target_joints > JOINT_UPPER_LIMIT):
@@ -467,7 +502,8 @@ class VLAController:
         path_position_error, path_rotation_error = validate_path(
             self.ik, current_joints, target_joints, current_pose, desired_pose
         )
-        return target_joints, desired_gripper, path_position_error, path_rotation_error
+        return (target_joints, desired_gripper, desired_pose,
+                path_position_error, path_rotation_error)
 
     def set_joint_target(self, target_joints):
         target_joints = np.asarray(target_joints, dtype=np.float64)
@@ -489,13 +525,25 @@ class VLAController:
         self.check_franka_error()
         self.set_joint_target(target_joints)
         self.motion_pending = True
-        # Publish arm and gripper targets without waiting for the arm to settle.
+        # Command the gripper immediately, without waiting for arm completion.
         self.execute_gripper_action(desired_gripper)
-        # Nonblocking: inference continues while the independent Franka process moves.
+
+        # Wait for the Franka process to acknowledge this exact target version.
+        # This prevents the next camera observation/inference until the arm settles.
+        requested_version = self.target_version.value
+        timeout = float(RUNTIME_CONFIG.get("motion_timeout_seconds", 30.0))
+        deadline = time.monotonic() + timeout
+        while self.completed_version.value < requested_version:
+            self.check_franka_error()
+            if time.monotonic() >= deadline:
+                raise RuntimeError(f"Franka did not settle within {timeout:.1f} seconds.")
+            time.sleep(0.01)
+        self.motion_pending = False
 
     def run(self):
         print(f"Running '{EXPERIMENT_NAME}' | action frame: base | instruction: {INSTRUCTION} | "
               f"max steps: {MAX_VLA_STEPS} | DRY_RUN={DRY_RUN}", flush=True)
+        consecutive_rejections = 0
         with self.jsonl_path.open("w", encoding="utf-8") as log:
             for step in range(1, MAX_VLA_STEPS + 1):
                 if not DRY_RUN:
@@ -511,24 +559,53 @@ class VLAController:
                 print(f"Maximum axis displacement: "
                       f"{np.max(np.abs(predicted_action[:3])) * 100:.2f} cm")
 
-                target_joints, desired_gripper, path_position_error, path_rotation_error = (
-                    self.validate_action_trajectory(current_joints, current_pose,
-                                         gripper_position, predicted_action)
-                )
+                # Save even rejected observations for experiment analysis.
+                self.save_observation(step, external_rgb, wrist_rgb)
+                try:
+                    (target_joints, desired_gripper, desired_pose,
+                     path_position_error, path_rotation_error) = (
+                        self.validate_action_trajectory(current_joints, current_pose,
+                                                        gripper_position, predicted_action)
+                    )
+                except ModelTrajectoryRejected as error:
+                    consecutive_rejections += 1
+                    reason = str(error)
+                    message = (f"Step {step}: action rejected ({consecutive_rejections}/"
+                               f"{MAX_CONSECUTIVE_REJECTIONS} consecutive): {reason}")
+                    print(message, flush=True)
+                    self.write_log(message)
+                    log.write(json.dumps(dict(
+                        step=step, status="rejected", reason=reason,
+                        state=observation.tolist(), action=predicted_action.tolist(),
+                        latency_ms=latency_ms, dry_run=DRY_RUN,
+                    )) + "\n")
+                    log.flush()
+                    if consecutive_rejections >= MAX_CONSECUTIVE_REJECTIONS:
+                        print("Consecutive rejection limit reached; stopping episode.", flush=True)
+                        break
+                    continue
+                consecutive_rejections = 0
                 record = dict(
                     step=step, state=observation.tolist(), action=predicted_action.tolist(),
                     target_q=target_joints.tolist(), target_gripper=desired_gripper,
                     latency_ms=latency_ms, path_error_m=path_position_error,
                     path_rotation_error_rad=path_rotation_error, dry_run=DRY_RUN,
                 )
-                log.write(json.dumps(record) + "\n")
-                log.flush()
                 self.write_log("=" * 80)
                 self.write_log(f"VLA STEP = {step}")
                 self.write_log("Robot current state = " + np.array2string(
                     self.current_vla_state, precision=6, separator=", "))
+                predicted_absolute_state = self.get_model_state(desired_pose, desired_gripper)
+                print("Robot current absolute state before action "
+                      "[x, y, z, roll, pitch, yaw, gripper] = "
+                      f"{np.round(self.current_vla_state, 6)}", flush=True)
+                print("Model-predicted absolute target state "
+                      "[x, y, z, roll, pitch, yaw, gripper] = "
+                      f"{np.round(predicted_absolute_state, 6)}", flush=True)
                 self.write_log("Predicted Cartesian action = " + np.array2string(
                     predicted_action, precision=6, separator=", "))
+                self.write_log("Predicted absolute target state = " + np.array2string(
+                    predicted_absolute_state, precision=6, separator=", "))
                 self.write_log("IK target joints = " + np.array2string(
                     target_joints, precision=6, separator=", "))
                 self.write_log(f"Gripper target = {desired_gripper:.6f}")
@@ -538,8 +615,47 @@ class VLAController:
                 self.write_log("")
                 print(f"Step {step}: action={np.round(predicted_action, 4)} | "
                       f"target_q={np.round(target_joints, 4)}", flush=True)
-                self.save_observation(step, external_rgb, wrist_rgb)
                 self.execute_action(target_joints, desired_gripper)
+                actual_joints, actual_pose = self.get_joint_state()
+                actual_gripper = float(np.clip(
+                    self.gripper.get_position_normalized(), 0.0, 1.0
+                ))
+                actual_state = self.get_model_state(actual_pose, actual_gripper)
+                position_error = float(np.linalg.norm(
+                    desired_pose[:3, 3] - actual_pose[:3, 3]
+                ))
+                orientation_error = float(np.linalg.norm(Rotation.from_matrix(
+                    desired_pose[:3, :3] @ actual_pose[:3, :3].T
+                ).as_rotvec()))
+                state_difference = actual_state.astype(np.float64) - predicted_absolute_state
+                state_difference[3:6] = wrap_euler_angles(state_difference[3:6])
+                print("Robot measured absolute state after action "
+                      "[x, y, z, roll, pitch, yaw, gripper] = "
+                      f"{np.round(actual_state, 6)}", flush=True)
+                print("Executed minus predicted state "
+                      "[x, y, z, roll, pitch, yaw, gripper] = "
+                      f"{np.round(state_difference, 6)}", flush=True)
+                print(f"Robot measured joints after action = "
+                      f"{np.round(actual_joints, 6)}", flush=True)
+                print(f"Pose check: position error={position_error * 1000:.2f} mm, "
+                      f"orientation error={np.rad2deg(orientation_error):.2f} deg",
+                      flush=True)
+                self.write_log("Robot measured absolute state after action = " +
+                               np.array2string(actual_state, precision=6, separator=", "))
+                self.write_log("Executed minus predicted state = " +
+                               np.array2string(state_difference, precision=6, separator=", "))
+                self.write_log(f"Pose check = position {position_error:.6f} m, "
+                               f"orientation {orientation_error:.6f} rad")
+                record.update(
+                    predicted_absolute_state=predicted_absolute_state.tolist(),
+                    executed_absolute_state=actual_state.tolist(),
+                    executed_joints=actual_joints.tolist(),
+                    state_difference=state_difference.tolist(),
+                    pose_error_position_m=position_error,
+                    pose_error_orientation_rad=orientation_error,
+                )
+                log.write(json.dumps(record) + "\n")
+                log.flush()
 
     def close(self):
         """Release video writers, cameras, inference connection and gripper."""
@@ -567,6 +683,7 @@ def main():
     target_version = mp.RawValue(ctypes.c_uint64, 0)
     shared_state = mp.RawArray(ctypes.c_double, 7)
     state_version = mp.RawValue(ctypes.c_uint64, 0)
+    completed_version = mp.RawValue(ctypes.c_uint64, 0)
     state_ready, stop_event = mp.Event(), mp.Event()
     error_queue = mp.Queue(maxsize=1)
     franka_process = controller = robot = None
@@ -580,7 +697,7 @@ def main():
             franka_process = mp.Process(
                 target=franka_control_process,
                 args=(shared_target, target_version, shared_state, state_version,
-                      state_ready, stop_event, error_queue),
+                      completed_version, state_ready, stop_event, error_queue),
                 daemon=False,
             )
             franka_process.start()
@@ -590,6 +707,7 @@ def main():
         controller = VLAController(
             shared_target, target_version, shared_state, state_version,
             stop_event, error_queue, experiment_dir, robot, franka_process,
+            completed_version,
         )
         controller.initialize()
         controller.run()

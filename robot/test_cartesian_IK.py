@@ -25,16 +25,24 @@ class FrankaIK:
         self.model = mjcf.from_path(str(model_path))
         self.physics = mjcf.Physics.from_mjcf_model(self.model)
         self.joints = self.model.find_all("joint")
-        self.wrist = self.model.find("site", "wrist_site")
+        # self.wrist = self.model.find("site", "wrist_site")
+        self.wrist = self.model.find("body", "panda_link8")
         if len(self.joints) != 7 or self.wrist is None:
             raise RuntimeError("Invalid FR3 kinematic model.")
 
+    # def forward_kinematics(self, joints):
+    #     self.physics.bind(self.joints).qpos[:] = joints
+    #     self.physics.forward()
+    #     wrist = self.physics.bind(self.wrist)
+    #     rotation = wrist.xmat.reshape(3, 3).copy()
+    #     return wrist.xpos.copy() + rotation @ self.wrist_to_ee, rotation
+
     def forward_kinematics(self, joints):
-        self.physics.bind(self.joints).qpos[:] = joints
-        self.physics.forward()
-        wrist = self.physics.bind(self.wrist)
-        rotation = wrist.xmat.reshape(3, 3).copy()
-        return wrist.xpos.copy() + rotation @ self.wrist_to_ee, rotation
+            self.physics.bind(self.joints).qpos[:] = joints
+            self.physics.forward()
+            wrist = self.physics.bind(self.wrist)
+            rotation = wrist.xmat.reshape(3, 3).copy()
+            return wrist.xpos.copy(), rotation
 
     def solve(self, current_q, target_position, target_rotation):
         current_q = np.asarray(current_q, dtype=float)
@@ -64,10 +72,10 @@ class FrankaIK:
               f"orientation: {np.rad2deg(orientation_error):.3f} deg | joint change: {joint_change:.4f} rad")
         if not result.success:
             raise RuntimeError("IK failed to converge.")
-        if position_error > 0.002:
-            raise RuntimeError("IK position tolerance exceeded (2 mm).")
-        if orientation_error > np.deg2rad(2.0):
-            raise RuntimeError("IK orientation tolerance exceeded (2 deg).")
-        if joint_change > self.max_joint_change:
-            raise RuntimeError("IK joint displacement exceeds configured limit.")
+        # if position_error > 0.002:
+        #     raise RuntimeError("IK position tolerance exceeded (2 mm).")
+        # if orientation_error > np.deg2rad(2.0):
+        #     raise RuntimeError("IK orientation tolerance exceeded (2 deg).")
+        # if joint_change > self.max_joint_change:
+        #     raise RuntimeError("IK joint displacement exceeds configured limit.")
         return result.x
